@@ -126,6 +126,8 @@ impl Environment {
                                 &self.all_names,
                             );
 
+                            println!("[DEBUG] New person: {}", new_agent.name);
+
                             let mut new_names = self.all_names.to_vec();
                             new_names.push(new_agent.name.clone());
 
