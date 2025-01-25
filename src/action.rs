@@ -7,6 +7,6 @@ pub enum Action {
 }
 
 pub struct GiveInfo {
-    amount: u32,
-    agent_trading_with: usize,
+    pub amount: u32,
+    pub agent_trading_with: usize,
 }
