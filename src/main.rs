@@ -13,5 +13,11 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         env.run_timestep().await?;
+
+        if env.agents.is_empty() {
+            break;
+        }
     }
+
+    Ok(())
 }

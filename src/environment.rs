@@ -1,11 +1,11 @@
-use crate::{action::ConverseInfo, agent::Agent};
+use crate::{action::Action, agent::Agent};
 use ollama_rs::Ollama;
 
 const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Stephen", "Basil"];
 
 pub struct Environment {
     time: u32,
-    agents: Vec<Agent>,
+    pub agents: Vec<Agent>,
 }
 
 impl Environment {
@@ -38,49 +38,68 @@ impl Environment {
 
         for (i, action) in actions.into_iter().enumerate() {
             println!("[DEBUG] {} took action {:?}", self.agents[i].name, action);
-            dbg!(&self.agents[i]);
+            dbg!(
+                self.agents[i].food,
+                self.agents[i].money,
+                self.agents[i].age
+            );
 
-            match action {
-                crate::action::Action::MakeFood => self.agents[i].give_food(5),
-                crate::action::Action::GiveMoney(give_info) => {
-                    let other_id = self.get_id_from_name(&give_info.agent_trading_with);
+            match action.action {
+                Action::Work => {
+                    self.agents[i].give_money(5);
+                }
+                Action::MakeFood => {
+                    let amount = action.args.amount.unwrap();
+                    self.agents[i].give_food(amount);
+                    self.agents[i].money -= amount;
+                }
+                Action::GiveMoney => {
+                    let trading_with = action.args.who_to_interact_with.unwrap();
+
+                    let other_id = self.get_id_from_name(&trading_with);
 
                     // todo tell the LLM they're an idiot
                     let other_id = other_id.unwrap();
 
-                    self.agents[other_id].give_money(give_info.amount);
+                    self.agents[other_id].give_money(action.args.amount.unwrap());
                 }
-                crate::action::Action::GiveFood(give_info) => {
-                    let other_id = self.get_id_from_name(&give_info.agent_trading_with);
+                Action::GiveFood => {
+                    let other_id =
+                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap());
 
                     // todo tell the LLM they're an idiot
                     let other_id = other_id.unwrap();
 
-                    self.agents[other_id].give_food(give_info.amount);
+                    self.agents[other_id].give_food(action.args.amount.unwrap());
                 }
-                crate::action::Action::Converse(ConverseInfo {
-                    directed_at,
-                    message,
-                }) => {
+                Action::Converse => {
                     // TODO tell LLM they're an idiot
-                    let index = self.get_id_from_name(&directed_at).unwrap();
+                    let index = self
+                        .get_id_from_name(&action.args.who_to_interact_with.unwrap())
+                        .unwrap();
                     let name = self.agents[i].name.clone();
-                    let msg_back = self.agents[index].send_msg(message, &name).await;
+                    let msg_back = self.agents[index]
+                        .send_msg(action.args.message.unwrap(), &name)
+                        .await;
                     self.agents[i].listen(msg_back, &name).await;
                 }
-                crate::action::Action::Broadcast(message) => {
+                Action::Broadcast => {
                     let name = self.agents[i].name.clone();
                     for j in 0..self.agents.len() {
                         if i == j {
                             continue;
                         }
-                        self.agents[j].listen(message.clone(), &name).await;
+                        self.agents[j]
+                            .listen(action.args.message.clone().unwrap(), &name)
+                            .await;
                     }
                 }
             }
 
             if self.agents[i].age() {
                 dead.push(i);
+
+                println!("{} died!", self.agents[i].name);
             }
         }
 
