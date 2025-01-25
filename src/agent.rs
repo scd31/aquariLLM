@@ -8,16 +8,16 @@ use ollama_rs::{
 };
 use rand::*;
 
-use crate::action::Action;
+use crate::action::LlmAction;
 
 #[derive(Debug)]
 pub struct Agent {
     pub name: String,
     ollama: Ollama,
 
-    money: u32,
-    age: u32,
-    food: u32,
+    pub money: u32,
+    pub age: u32,
+    pub food: u32,
     history: Vec<ChatMessage>,
 
     // attributes (0-10)
@@ -33,7 +33,7 @@ impl Agent {
 
         format!(
             r#"
-You are an agent in a community of other agents. Your name is {} and the other agents are named as follows:
+You are a person in a virtual community of other people. Your name is {} and the other agents are named as follows:
 {}
 
 Your personality traits are as follows:
@@ -42,14 +42,15 @@ Sociability: {}/10
 Selfishness: {}/10
 Compassion: {}/10
 
-Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. You can only have a maximum of 19 foods. Making food beyond this will be discarded and is a waste. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
+Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. You can only have a maximum of 19 foods. Making food beyond this will be discarded and is a waste. Wasting food is VERY BAD. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 
 You can take the following Actions:
-- MakeFood - make 5 food
-- GiveMoney - give money to another agent
-- GiveFood - give food to another agent
-- Converse - send a message to another agent
-- Broadcast - send a message to every agent
+- Work - get 5 money for doing work
+- MakeFood(amount) - exchange money for food at a 1:1 ratio
+- GiveMoney(who_to_interact_with, amount) - give money to another agent
+- GiveFood(who_to_interact_with, amount) - give food to another agent
+- Converse(who_to_interact_with, message) - send a message to a single other agent
+- Broadcast(message) - send a message to every agent
 "#,
             self.name,
             names_formatted,
@@ -61,7 +62,7 @@ You can take the following Actions:
         )
     }
 
-    pub async fn step(&mut self) -> anyhow::Result<Action> {
+    pub async fn step(&mut self) -> anyhow::Result<LlmAction> {
         let res = self
             .ollama
             .send_chat_messages_with_history(
@@ -69,15 +70,17 @@ You can take the following Actions:
                 ChatMessageRequest::new(
                     "llama3.2:3b".to_string(),
                     vec![ChatMessage::user(format!(
-                        "Currently you have {} food, {} dollars, and are age {} steps. What action would you like to take?",
+                        "Currently you have {} food (max 19, dead at 0), {} dollars, and are age {} steps. What action would you like to take?",
                         self.food, self.money, self.age
                     ))],
                 )
-                    .format(FormatType::StructuredJson(JsonStructure::new::<Action>()))
+                    .format(FormatType::StructuredJson(JsonStructure::new::<LlmAction>()))
                     .options(GenerationOptions::default().temperature(0.9).num_ctx(16_384)),
             )
             .await
             .unwrap();
+
+        dbg!(&res.message.content);
 
         let action = serde_json::from_str(&res.message.content)?;
 
@@ -126,15 +129,20 @@ You can take the following Actions:
 
         res.message.content
     }
+
     pub async fn listen(&mut self, msg: String, sender: &String) {
         let _ = self
             .ollama
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                "llama3.2:3b".to_string(),
-                vec![ChatMessage::user(format!(r#"{} has responded! They said '{msg}'"#, sender)
-                )]))
+                    "llama3.2:3b".to_string(),
+                    vec![ChatMessage::user(format!(
+                        r#"{} has responded! They said '{msg}'"#,
+                        sender
+                    ))],
+                ),
+            )
             .await
             .unwrap();
     }
@@ -142,10 +150,10 @@ You can take the following Actions:
     // returns true if we are dead )':
     pub fn age(&mut self) -> bool {
         self.age += 1;
-        self.food -= 1;
         if self.food == 0 {
             return true;
         }
+        self.food -= 1;
 
         // TODO
         if self.age == 80 {
