@@ -112,12 +112,29 @@ You can take the following Actions:
         self.money += amount;
     }
 
-    pub fn send_msg(&mut self, msg: String, sender: &String) -> String {
-        let msg_back: String = "".to_string();
-        msg_back
+    pub async fn send_msg(&mut self, msg: String, sender: &String) -> String {
+        let res = self
+            .ollama
+            .send_chat_messages_with_history(
+                &mut self.history,
+                ChatMessageRequest::new(
+                "llama3.2:3b".to_string(),
+                vec![ChatMessage::user(msg)]))
+            .await
+            .unwrap();
+
+        res.message.content
     }
-    pub fn listen(&mut self, msg: String, sender: &String) {
-        todo!();
+    pub async fn listen(&mut self, msg: String, sender: &String) {
+        let _ = self
+            .ollama
+            .send_chat_messages_with_history(
+                &mut self.history,
+                ChatMessageRequest::new(
+                "llama3.2:3b".to_string(),
+                vec![ChatMessage::user(msg)]))
+            .await
+            .unwrap();
     }
 
     // returns true if we are dead )':
