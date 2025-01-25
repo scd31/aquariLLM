@@ -1,5 +1,3 @@
-use ollama_rs::{coordinator::Coordinator, generation::{chat::ChatMessage, options::GenerationOptions}};
-use rand::*;
 use ollama_rs::{
     coordinator::Coordinator,
     generation::{
@@ -9,6 +7,7 @@ use ollama_rs::{
     },
     Ollama,
 };
+use rand::*;
 
 use crate::action::Action;
 
