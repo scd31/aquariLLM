@@ -1,3 +1,4 @@
+use faker_rand::en_us::names::FirstName;
 use ollama_rs::{
     generation::{
         chat::{request::ChatMessageRequest, ChatMessage},
@@ -7,7 +8,8 @@ use ollama_rs::{
     Ollama,
 };
 use rand::*;
-use faker_rand::en_us::names::FirstName;
+use schemars::JsonSchema;
+use serde::Deserialize;
 
 use crate::action::LlmAction;
 
@@ -26,15 +28,17 @@ pub struct Agent {
     pub socialness: f32,
     pub selfishness: f32,
     pub compassion: f32,
+    pub food_ability: f32,
 }
 
 impl Agent {
     fn system_prompt(&self, all_names: &[String]) -> String {
         let names_formatted = all_names.join("\n");
+        let money_ability = 10.0 - self.food_ability;
 
         format!(
             r#"
-You are a person in a virtual community of other people. Your name is {} and the other agents are named as follows:
+You are a person in a virtual community of other people. Your name is {} and the other people are named as follows:
 {}
 
 Your personality traits are as follows:
@@ -42,16 +46,21 @@ Honesty: {}/10
 Sociability: {}/10
 Selfishness: {}/10
 Compassion: {}/10
+Ability to make food: {}/10
+Ability to make money: {}/10
 
 Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. You can only have a maximum of 19 foods. Making food beyond this will be discarded and is a waste. Wasting food is VERY BAD. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 
+If you want to trade, use messages to try to set up a deal with another person. Then you can each give food/money to eacho other. Keep in mind the other person can always fall through on their end of the deal!
+
 You can take the following Actions:
-- Work - get 5 money for doing work
-- MakeFood(amount) - exchange money for food at a 1:1 ratio
-- GiveMoney(who_to_interact_with, amount) - give money to another agent
-- GiveFood(who_to_interact_with, amount) - give food to another agent
-- Converse(who_to_interact_with, message) - send a message to a single other agent
-- Broadcast(message) - send a message to every agent
+- Work - get {} money for doing work
+- MakeFood(amount) - Make {} food
+- GiveMoney(who_to_interact_with, amount) - give money to another person
+- GiveFood(who_to_interact_with, amount) - give food to another person
+- Converse(who_to_interact_with, message) - send a message to a single other person
+- Broadcast(message) - send a message to every person
+- Reproduce(who_to_interact_with) - have a baby with another person
 "#,
             self.name,
             names_formatted,
@@ -59,7 +68,11 @@ You can take the following Actions:
             self.socialness,
             self.selfishness,
             self.compassion,
+            self.food_ability,
+            money_ability,
             self.food,
+            money_ability,
+            self.food_ability,
         )
     }
 
@@ -81,8 +94,6 @@ You can take the following Actions:
             .await
             .unwrap();
 
-        dbg!(&res.message.content);
-
         let action = serde_json::from_str(&res.message.content)?;
 
         Ok(action)
@@ -101,6 +112,7 @@ You can take the following Actions:
             socialness: random::<f32>() * 10.0,
             selfishness: random::<f32>() * 10.0,
             compassion: random::<f32>() * 10.0,
+            food_ability: thread_rng().gen_range(0.0..=10.0),
         };
 
         a.history
@@ -108,15 +120,28 @@ You can take the following Actions:
 
         a
     }
+
     pub fn give_food(&mut self, amount: u32) {
         self.food += amount;
         self.food = self.food.clamp(0, 20);
     }
+
     pub fn give_money(&mut self, amount: u32) {
         self.money += amount;
     }
 
+    pub fn make_food(&mut self) {
+        self.food += self.food_ability as u32;
+        self.food = self.food.clamp(0, 20);
+    }
+
+    pub fn work(&mut self) {
+        self.money += 10 - self.food_ability as u32;
+    }
+
     pub async fn send_msg(&mut self, msg: String, sender: &String) -> String {
+        println!("[DEBUG] {} -> {}: {}", sender, self.name, msg);
+
         let res = self
             .ollama
             .send_chat_messages_with_history(
@@ -124,31 +149,25 @@ You can take the following Actions:
                 ChatMessageRequest::new(
                 "llama3.2:3b".to_string(),
                 vec![ChatMessage::user(format!(r#"{} has decided to chat! They said '{msg}' What would you like to say to them?"#, sender)
-                )]))
+                )]).format(FormatType::StructuredJson(JsonStructure::new::<MessageReply>())))
             .await
             .unwrap();
 
-        res.message.content
+        let msg: MessageReply = serde_json::from_str(&res.message.content).unwrap();
+
+        println!("[DEBUG] {} -> {}: {}", self.name, sender, msg.message);
+
+        msg.message
     }
 
     pub async fn listen(&mut self, msg: String, sender: &String) {
-        let _ = self
-            .ollama
-            .send_chat_messages_with_history(
-                &mut self.history,
-                ChatMessageRequest::new(
-                    "llama3.2:3b".to_string(),
-                    vec![ChatMessage::user(format!(
-                        r#"{} has responded! They said '{msg}'"#,
-                        sender
-                    ))],
-                ),
-            )
-            .await
-            .unwrap();
+        self.history.push(ChatMessage::user(format!(
+            r#"{} has responded! They said '{msg}'"#,
+            sender
+        )));
     }
 
-    pub async fn propose (&mut self, msg : String, sender: &String) ->anyhow::Result<bool> {
+    pub async fn propose(&mut self, msg: String, sender: &String) -> anyhow::Result<bool> {
         let res = self
             .ollama
             .send_chat_messages_with_history(
@@ -167,7 +186,15 @@ You can take the following Actions:
         Ok(action)
     }
 
-    pub fn reproduce (&self, honesty : f32, socialness : f32, selfishness : f32, compassion : f32, all_names: &[String]) -> Agent {
+    pub fn reproduce(
+        &self,
+        honesty: f32,
+        socialness: f32,
+        selfishness: f32,
+        compassion: f32,
+        food_ability: f32,
+        all_names: &[String],
+    ) -> Agent {
         let my_weight = random::<f32>();
         let other_weight = 1.0 - my_weight;
 
@@ -175,11 +202,12 @@ You can take the following Actions:
         let new_socialness = socialness * other_weight + self.socialness * my_weight;
         let new_selfishness = selfishness * other_weight + self.selfishness * my_weight;
         let new_compassion = compassion * other_weight + self.compassion * my_weight;
+        let new_food_ability = food_ability * other_weight + self.food_ability * my_weight;
 
         let mut a = Agent {
-            ollama : self.ollama.clone(),
+            ollama: self.ollama.clone(),
 
-            name : random::<FirstName>().to_string(),
+            name: random::<FirstName>().to_string(),
             money: 10,
             age: 0,
             food: 5,
@@ -188,6 +216,7 @@ You can take the following Actions:
             socialness: new_socialness,
             selfishness: new_selfishness,
             compassion: new_compassion,
+            food_ability: new_food_ability,
         };
 
         let mut new_names = all_names.to_vec();
@@ -197,7 +226,6 @@ You can take the following Actions:
             .push(ChatMessage::system(a.system_prompt(&new_names)));
 
         a
-
     }
 
     // returns true if we are dead )':
@@ -215,4 +243,9 @@ You can take the following Actions:
 
         false
     }
+}
+
+#[derive(JsonSchema, Deserialize, Debug)]
+struct MessageReply {
+    message: String,
 }
