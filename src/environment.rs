@@ -18,7 +18,7 @@ impl Environment {
         };
 
         let mut all_names: Vec<_> = Vec::new();
-      
+
         for _ in 0..num_agents {
             let name = random::<FirstName>().to_string();
             all_names.push(name);
@@ -72,8 +72,8 @@ impl Environment {
 
                     // todo tell the LLM they're an idiot
                     let other_id = other_id.unwrap();
-
-                    self.agents[other_id].give_money(action.args.amount.unwrap());
+                    let name = self.agents[i].name.clone();
+                    self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
                 }
                 Action::GiveFood => {
                     let other_id =
@@ -82,7 +82,8 @@ impl Environment {
                     // todo tell the LLM they're an idiot
                     let other_id = other_id.unwrap();
 
-                    self.agents[other_id].give_food(action.args.amount.unwrap());
+                    let name = self.agents[i].name.clone();
+                    self.agents[other_id].give_food(action.args.amount.unwrap(), &name);
                 }
                 Action::Converse => {
                     // TODO tell LLM they're an idiot
