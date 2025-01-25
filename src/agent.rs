@@ -67,7 +67,7 @@ You can take the following Actions:
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                    "qwen2.5:14b".to_string(),
+                    "llama3.2:3b".to_string(),
                     vec![ChatMessage::user(format!(
                         "Currently you have {} food, {} dollars, and are age {} steps. What action would you like to take?",
                         self.food, self.money, self.age
@@ -119,7 +119,8 @@ You can take the following Actions:
                 &mut self.history,
                 ChatMessageRequest::new(
                 "llama3.2:3b".to_string(),
-                vec![ChatMessage::user(msg)]))
+                vec![ChatMessage::user(format!(r#"{} has decided to chat! They said '{msg}' What would you like to say to them?"#, sender)
+                )]))
             .await
             .unwrap();
 
@@ -132,7 +133,8 @@ You can take the following Actions:
                 &mut self.history,
                 ChatMessageRequest::new(
                 "llama3.2:3b".to_string(),
-                vec![ChatMessage::user(msg)]))
+                vec![ChatMessage::user(format!(r#"{} has responded! They said '{msg}'"#, sender)
+                )]))
             .await
             .unwrap();
     }
