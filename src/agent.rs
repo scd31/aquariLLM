@@ -121,13 +121,15 @@ You can take the following Actions:
         a
     }
 
-    pub fn give_food(&mut self, amount: u32) {
+    pub fn give_food(&mut self, amount: u32, sender: &String) {
         self.food += amount;
         self.food = self.food.clamp(0, 20);
+        self.history.push(ChatMessage::system(format!("You have been given {} food by {}", amount, sender)));
     }
 
-    pub fn give_money(&mut self, amount: u32) {
+    pub fn give_money(&mut self, amount: u32, sender: &String) {
         self.money += amount;
+        self.history.push(ChatMessage::system(format!("You have been given ${} by {}", amount, sender)));
     }
 
     pub fn make_food(&mut self) {
