@@ -1,6 +1,9 @@
-use ollama_rs::generation::chat::ChatMessage;
+use ollama_rs::{coordinator::Coordinator, generation::{chat::ChatMessage, options::GenerationOptions}};
+
+use crate::action::Action;
 
 pub struct Agent {
+    pub name: String,
     money: u32,
     age: u32,
     food: u32,
@@ -31,11 +34,41 @@ Every step, you can take an action. You will also consume one food per action. C
         )
     }
 
-    fn step(&mut self) {
+    pub fn step(&mut self) -> Action {
         let tools = tool_group![];
 
         let mut coordinator =
             Coordinator::new_with_tools(ollama, "llama3.2:3b", &mut self.history, tools)
                 .options(GenerationOptions::default().num_ctx(16_384));
+
+        Action::MakeFood
+    }
+
+    pub fn new_random(seed : u8) -> Self {
+        Agent {
+            name : seed.to_string(),
+            money: 10,
+            age: 0,
+            food: 5,
+            history: vec![],
+            honesty: seed % 10 + 1,
+            socialness: (seed + 2) % 10 + 1,
+            selfishness: (3 * seed - 2 * seed) % 10 + 1,
+            compassion: (100 - seed) % 10 + 1,
+        }
+    }
+    pub fn give_food(&mut self, amount : u32) {
+        self.food += amount;
+    }
+    pub fn give_money(&mut self, amount : u32) {
+        self.money += amount;
+    }
+
+    pub fn send_msg(&mut self, msg : String, sender : &String) -> String {
+        let msg_back : String = "".to_string();
+        msg_back
+    }
+    pub fn listen(&mut self, msg : String, sender : &String) {
+        todo!();
     }
 }
