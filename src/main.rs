@@ -1,5 +1,11 @@
+use std::io::{stdin, stdout, Write};
+
+use agent::MODEL;
 use environment::Environment;
-use ollama_rs::Ollama;
+use ollama_rs::{
+    generation::chat::{request::ChatMessageRequest, ChatMessage},
+    Ollama,
+};
 use signalbool::{Flag, Signal, SignalBool};
 
 mod action;
@@ -30,12 +36,14 @@ async fn main() -> anyhow::Result<()> {
         env.run_timestep().await?;
 
         if sb.caught() {
-            sb.reset(); // TODO
+            sb.reset();
 
-            loop {
-                if sb.caught() {
-                    return Ok(());
-                }
+            cli(&mut env).await;
+
+            println!();
+
+            if sb.caught() {
+                return Ok(());
             }
         }
 
@@ -45,4 +53,50 @@ async fn main() -> anyhow::Result<()> {
     }
 
     Ok(())
+}
+
+async fn cli(env: &mut Environment) -> Option<()> {
+    let names: Vec<_> = env.agents.iter().map(|a| a.name.to_string()).collect();
+
+    println!("Who do you want to chat with? [{}]", names.join(", "));
+    let mut lines = stdin().lines();
+    let mut name;
+    let mut agent = loop {
+        name = lines.next()?.ok()?;
+
+        if let Some(a) = env
+            .agents
+            .iter()
+            .find(|a| a.name.to_lowercase() == name.to_lowercase())
+        {
+            break a.to_owned();
+        }
+
+        println!("Invalid name");
+    };
+
+    println!("Talking to {}", agent.name);
+
+    print!("> ");
+    stdout().flush().ok()?;
+
+    for line in lines {
+        let line = line.ok()?;
+
+        let res = agent
+            .ollama
+            .send_chat_messages_with_history(
+                &mut agent.history,
+                ChatMessageRequest::new(MODEL.to_string(), vec![ChatMessage::user(line)]),
+            )
+            .await
+            .unwrap();
+
+        println!("{}> {}", name, res.message.content);
+
+        print!("> ");
+        stdout().flush().ok()?;
+    }
+
+    Some(())
 }
