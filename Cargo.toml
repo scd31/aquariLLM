@@ -1,0 +1,7 @@
+[package]
+name = "aquariLLM"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ollama-rs = "0.2.4"
