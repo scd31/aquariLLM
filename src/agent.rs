@@ -1,9 +1,19 @@
-use ollama_rs::{coordinator::Coordinator, generation::{chat::ChatMessage, options::GenerationOptions}};
+use ollama_rs::{
+    coordinator::Coordinator,
+    generation::{
+        chat::{request::ChatMessageRequest, ChatMessage},
+        options::GenerationOptions,
+        parameters::{FormatType, JsonStructure},
+    },
+    Ollama,
+};
 
 use crate::action::Action;
 
 pub struct Agent {
     pub name: String,
+    ollama: Ollama,
+
     money: u32,
     age: u32,
     food: u32,
@@ -17,6 +27,10 @@ pub struct Agent {
 }
 
 impl Agent {
+    pub fn new(ollama: Ollama) -> Self {
+        todo!()
+    }
+
     fn system_prompt(&self) -> String {
         format!(
             r#"
@@ -34,19 +48,28 @@ Every step, you can take an action. You will also consume one food per action. C
         )
     }
 
-    pub fn step(&mut self) -> Action {
-        let tools = tool_group![];
+    pub async fn step(&mut self) -> anyhow::Result<Action> {
+        self.ollama
+            .send_chat_messages_with_history(
+                &mut self.history,
+                ChatMessageRequest::new(
+                    "llama3.2:3b".to_string(),
+                    vec![ChatMessage::user(
+                        "What action would you like to take?".to_string(),
+                    )],
+                )
+                .format(FormatType::StructuredJson(JsonStructure::new::<Action>())),
+            )
+            .await;
 
-        let mut coordinator =
-            Coordinator::new_with_tools(ollama, "llama3.2:3b", &mut self.history, tools)
-                .options(GenerationOptions::default().num_ctx(16_384));
-
-        Action::MakeFood
+        todo!()
     }
 
-    pub fn new_random(seed : u8) -> Self {
+    pub fn new_random(ollama: Ollama, seed: u8) -> Self {
         Agent {
-            name : seed.to_string(),
+            ollama,
+
+            name: seed.to_string(),
             money: 10,
             age: 0,
             food: 5,
@@ -57,18 +80,18 @@ Every step, you can take an action. You will also consume one food per action. C
             compassion: (100 - seed) % 10 + 1,
         }
     }
-    pub fn give_food(&mut self, amount : u32) {
+    pub fn give_food(&mut self, amount: u32) {
         self.food += amount;
     }
-    pub fn give_money(&mut self, amount : u32) {
+    pub fn give_money(&mut self, amount: u32) {
         self.money += amount;
     }
 
-    pub fn send_msg(&mut self, msg : String, sender : &String) -> String {
-        let msg_back : String = "".to_string();
+    pub fn send_msg(&mut self, msg: String, sender: &String) -> String {
+        let msg_back: String = "".to_string();
         msg_back
     }
-    pub fn listen(&mut self, msg : String, sender : &String) {
+    pub fn listen(&mut self, msg: String, sender: &String) {
         todo!();
     }
 }
