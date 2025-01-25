@@ -13,10 +13,12 @@ use serde::Deserialize;
 
 use crate::action::LlmAction;
 
-#[derive(Debug)]
+pub const MODEL: &str = "llama3.2:3b";
+
+#[derive(Clone, Debug)]
 pub struct Agent {
     pub name: String,
-    ollama: Ollama,
+    pub ollama: Ollama,
 
     pub money: u32,
     pub age: u32,
@@ -51,7 +53,9 @@ Ability to make money: {}/10
 
 Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. You can only have a maximum of 19 foods. Making food beyond this will be discarded and is a waste. Wasting food is VERY BAD. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 
-If you want to trade, use messages to try to set up a deal with another person. Then you can each give food/money to eacho other. Keep in mind the other person can always fall through on their end of the deal!
+If you want to trade, use messages to try to set up a deal with another person. Then you can each give food/money to each other. Keep in mind the other person can always fall through on their end of the deal!
+
+You want to reproduce whenever possible. Reproduction adds new people to the community who can be interacted with.
 
 You can take the following Actions:
 - Work - get {} money for doing work
@@ -60,7 +64,7 @@ You can take the following Actions:
 - GiveFood(who_to_interact_with, amount) - give food to another person
 - Converse(who_to_interact_with, message) - send a message to a single other person
 - Broadcast(message) - send a message to every person
-- Reproduce(who_to_interact_with) - have a baby with another person
+- Reproduce(who_to_interact_with, message) - propose to have a baby with another person
 "#,
             self.name,
             names_formatted,
@@ -82,7 +86,7 @@ You can take the following Actions:
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                    "llama3.2:3b".to_string(),
+                    MODEL.to_string(),
                     vec![ChatMessage::user(format!(
                         "Currently you have {} food (max 19, dead at 0), {} dollars, and are age {} steps. What action would you like to take?",
                         self.food, self.money, self.age
@@ -124,12 +128,18 @@ You can take the following Actions:
     pub fn give_food(&mut self, amount: u32, sender: &String) {
         self.food += amount;
         self.food = self.food.clamp(0, 20);
-        self.history.push(ChatMessage::system(format!("You have been given {} food by {}", amount, sender)));
+        self.history.push(ChatMessage::system(format!(
+            "You have been given {} food by {}",
+            amount, sender
+        )));
     }
 
     pub fn give_money(&mut self, amount: u32, sender: &String) {
         self.money += amount;
-        self.history.push(ChatMessage::system(format!("You have been given ${} by {}", amount, sender)));
+        self.history.push(ChatMessage::system(format!(
+            "You have been given ${} by {}",
+            amount, sender
+        )));
     }
 
     pub fn make_food(&mut self) {
@@ -149,7 +159,7 @@ You can take the following Actions:
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                "llama3.2:3b".to_string(),
+                MODEL.to_string(),
                 vec![ChatMessage::user(format!(r#"{} has decided to chat! They said '{msg}' What would you like to say to them?"#, sender)
                 )]).format(FormatType::StructuredJson(JsonStructure::new::<MessageReply>())))
             .await
@@ -175,7 +185,7 @@ You can take the following Actions:
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                "llama3.2:3b".to_string(),
+                MODEL.to_string(),
                 vec![ChatMessage::user(format!(r#"{} has proposed to reproduce! They said '{msg}' Do you accept? Respond true or false."#, sender)
                 )])
                 .format(FormatType::StructuredJson(JsonStructure::new::<bool>()))

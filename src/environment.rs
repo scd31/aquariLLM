@@ -25,7 +25,6 @@ impl Environment {
         }
 
         for i in 0..num_agents {
-
             let name = all_names[i].clone();
             new_env
                 .agents
@@ -66,27 +65,33 @@ impl Environment {
                     self.agents[i].make_food();
                 }
                 Action::GiveMoney => {
-                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                    if let Some(other_id) =
+                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
+                    {
                         let name = self.agents[i].name.clone();
                         self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community",)
-                            ));
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string())
+                            );
                     }
                 }
                 Action::GiveFood => {
-                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                    if let Some(other_id) =
+                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
+                    {
                         let name = self.agents[i].name.clone();
                         self.agents[other_id].give_food(action.args.amount.unwrap(), &name);
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
                             ));
                     }
                 }
                 Action::Converse => {
-                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                    if let Some(other_id) =
+                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
+                    {
                         let name = self.agents[i].name.clone();
                         let msg_back = self.agents[other_id]
                             .send_msg(action.args.message.unwrap(), &name)
@@ -94,12 +99,14 @@ impl Environment {
                         self.agents[i].listen(msg_back, &name).await;
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
                             ));
                     }
                 }
                 Action::Reproduce => {
-                    if let Some(index) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                    if let Some(index) =
+                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
+                    {
                         let name = self.agents[i].name.clone();
                         let accepted = self.agents[index]
                             .propose(action.args.message.unwrap(), &name)
@@ -127,19 +134,36 @@ impl Environment {
                                     continue;
                                 }
                                 self.agents[j]
-                                    .listen(format!("There's a new member of the community named {}!", new_agent.name.clone()), &name)
+                                    .listen(
+                                        format!(
+                                            "There's a new member of the community named {}!",
+                                            new_agent.name.clone()
+                                        ),
+                                        &name,
+                                    )
+                                    .await;
+
+                                self.agents[j]
+                                    .listen(
+                                        format!(
+                                            "There's a new member of the community named {}!",
+                                            new_agent.name.clone()
+                                        ),
+                                        &name,
+                                    )
                                     .await;
                             }
 
                             self.agents.push(new_agent);
                             self.all_names = new_names;
-                        } else {
-                            self.agents[i].history.push(
-                                ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
-                                ));
                         }
+                    } else {
+                        self.agents[i].history.push(
+                                ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
+                                ));
                     }
                 }
+
                 Action::Broadcast => {
                     let name = self.agents[i].name.clone();
                     for j in 0..self.agents.len() {
@@ -155,6 +179,9 @@ impl Environment {
 
             if self.agents[i].age() {
                 let name = self.agents[i].name.clone();
+
+                println!("[DEBUG] {name} has died");
+
                 for j in 0..self.agents.len() {
                     if i == j {
                         continue;
