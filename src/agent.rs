@@ -1,4 +1,5 @@
 use ollama_rs::{coordinator::Coordinator, generation::{chat::ChatMessage, options::GenerationOptions}};
+use rand::*;
 
 use crate::action::Action;
 
@@ -51,10 +52,10 @@ Every step, you can take an action. You will also consume one food per action. C
             age: 0,
             food: 5,
             history: vec![],
-            honesty: seed % 10 + 1,
-            socialness: (seed + 2) % 10 + 1,
-            selfishness: (3 * seed - 2 * seed) % 10 + 1,
-            compassion: (100 - seed) % 10 + 1,
+            honesty: (random::<f32>() * 10.0) as u8,
+            socialness: (random::<f32>() * 10.0) as u8,
+            selfishness: (random::<f32>() * 10.0) as u8,
+            compassion: (random::<f32>() * 10.0) as u8,
         }
     }
     pub fn give_food(&mut self, amount : u32) {
