@@ -12,13 +12,14 @@ use ollama_rs::{
 
 use crate::action::Action;
 
+#[derive(Debug)]
 pub struct Agent {
     pub name: String,
     ollama: Ollama,
 
     money: u32,
     age: u32,
-    food: u32,
+    pub food: u32,
     history: Vec<ChatMessage>,
 
     // attributes (0-10)
@@ -29,14 +30,13 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn new(ollama: Ollama) -> Self {
-        todo!()
-    }
+    fn system_prompt(&self, all_names: &[&str]) -> String {
+        let names_formatted = all_names.join("\n");
 
-    fn system_prompt(&self) -> String {
         format!(
             r#"
-You are an agent in a community of other agents.
+You are an agent in a community of other agents. Your name is {} and the other agents are named as follows:
+{}
 
 Your personality traits are as follows:
 Honesty: {}/10
@@ -46,7 +46,13 @@ Compassion: {}/10
 
 Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 "#,
-            self.honesty, self.socialness, self.selfishness, self.compassion, self.food,
+            self.name,
+            names_formatted,
+            self.honesty,
+            self.socialness,
+            self.selfishness,
+            self.compassion,
+            self.food,
         )
     }
 
@@ -69,21 +75,14 @@ Every step, you can take an action. You will also consume one food per action. C
 
         let action = serde_json::from_str(&res.message.content)?;
 
-        self.age += 1;
-        self.food -= 1;
-        if self.food == 0 {
-            // TODO
-            panic!("I am dead");
-        }
-
         Ok(action)
     }
 
-    pub fn new_random(ollama: Ollama, seed: u8) -> Self {
+    pub fn new_random(ollama: Ollama, name: String, seed: u8) -> Self {
         Agent {
             ollama,
 
-            name: seed.to_string(),
+            name,
             money: 10,
             age: 0,
             food: 5,
@@ -107,5 +106,21 @@ Every step, you can take an action. You will also consume one food per action. C
     }
     pub fn listen(&mut self, msg: String, sender: &String) {
         todo!();
+    }
+
+    // returns true if we are dead )':
+    pub fn age(&mut self) -> bool {
+        self.age += 1;
+        self.food -= 1;
+        if self.food == 0 {
+            return true;
+        }
+
+        // TODO
+        if self.age == 80 {
+            return true;
+        }
+
+        false
     }
 }

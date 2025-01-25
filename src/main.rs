@@ -1,18 +1,17 @@
-use agent::Agent;
-use ollama_rs::{generation::options::GenerationOptions, Ollama};
+use environment::Environment;
+use ollama_rs::Ollama;
 
 mod action;
 mod agent;
 mod environment;
 
 #[tokio::main]
-async fn main() {
-    let mut ollama = Ollama::default();
+async fn main() -> anyhow::Result<()> {
+    let ollama = Ollama::default();
 
-    let mut agent = Agent::new_random(ollama, 0);
+    let mut env = Environment::create(ollama, 2);
+
     loop {
-        dbg!(agent.step().await.unwrap());
+        env.run_timestep().await?;
     }
-
-    println!("Hello, world!");
 }

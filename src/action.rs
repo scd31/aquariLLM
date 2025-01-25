@@ -1,11 +1,6 @@
 use ollama_rs::generation::parameters::JsonSchema;
 use serde::Deserialize;
 
-/*pub struct RawAction {
-    action: ActionName,
-
-}*/
-
 #[derive(JsonSchema, Deserialize, Debug)]
 pub enum Action {
     MakeFood,
@@ -18,7 +13,7 @@ pub enum Action {
 #[derive(JsonSchema, Deserialize, Debug)]
 pub struct GiveInfo {
     pub amount: u32,
-    pub agent_trading_with: usize,
+    pub agent_trading_with: String,
 }
 
 #[derive(JsonSchema, Deserialize, Debug)]
