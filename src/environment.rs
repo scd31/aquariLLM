@@ -3,11 +3,11 @@ use faker_rand::en_us::names::FirstName;
 use ollama_rs::Ollama;
 use rand::random;
 
-const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Stephen", "Basil"];
+const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Jake", "Paul"];
 
 pub struct Environment {
     time: u32,
-    all_names : Vec<String>,
+    all_names: Vec<String>,
     pub agents: Vec<Agent>,
 }
 
@@ -19,9 +19,10 @@ impl Environment {
             agents: Vec::with_capacity(num_agents),
         };
 
-        let all_names: Vec<_> = (0..num_agents).map(|i| POTENTIAL_NAMES[i].to_owned()).collect();
+        let all_names: Vec<_> = (0..num_agents)
+            .map(|i| POTENTIAL_NAMES[i].to_owned())
+            .collect();
 
-        for _ in 0..num_agents {
             let name = random::<FirstName>().to_string();
 
             new_env
@@ -41,21 +42,26 @@ impl Environment {
         let mut dead = vec![];
 
         for (i, action) in actions.into_iter().enumerate() {
-            println!("[DEBUG] {} took action {:?}", self.agents[i].name, action);
-            dbg!(
-                self.agents[i].food,
-                self.agents[i].money,
-                self.agents[i].age
+            println!();
+            println!(
+                "[DEBUG] {}: (thinking) {}",
+                self.agents[i].name, action.thinking
+            );
+            println!(
+                "[DEBUG] {}: took action {:?} with params {:?}",
+                self.agents[i].name, action.action, action.args
+            );
+            println!(
+                "[DEBUG] {}: {} food, {} money, {} age",
+                self.agents[i].name, self.agents[i].food, self.agents[i].money, self.agents[i].age
             );
 
             match action.action {
                 Action::Work => {
-                    self.agents[i].give_money(5);
+                    self.agents[i].work();
                 }
                 Action::MakeFood => {
-                    let amount = action.args.amount.unwrap();
-                    self.agents[i].give_food(amount);
-                    self.agents[i].money -= amount;
+                    self.agents[i].make_food();
                 }
                 Action::GiveMoney => {
                     let trading_with = action.args.who_to_interact_with.unwrap();
@@ -86,7 +92,7 @@ impl Environment {
                         .send_msg(action.args.message.unwrap(), &name)
                         .await;
                     self.agents[i].listen(msg_back, &name).await;
-                },
+                }
                 Action::Reproduce => {
                     let index = self
                         .get_id_from_name(&action.args.who_to_interact_with.unwrap())
@@ -100,7 +106,15 @@ impl Environment {
                         let socialness = self.agents[index].socialness;
                         let selfishness = self.agents[index].selfishness;
                         let compassion = self.agents[index].compassion;
-                        let new_agent = self.agents[i].reproduce(honesty, socialness, selfishness, compassion, &self.all_names);
+                        let food_ability = self.agents[index].food_ability;
+                        let new_agent = self.agents[i].reproduce(
+                            honesty,
+                            socialness,
+                            selfishness,
+                            compassion,
+                            food_ability,
+                            &self.all_names,
+                        );
 
                         let mut new_names = self.all_names.to_vec();
                         new_names.push(new_agent.name.clone());
@@ -127,7 +141,9 @@ impl Environment {
                     if i == j {
                         continue;
                     }
-                    self.agents[j].listen(format!("{} has died. Rest in peace.", &name), &name).await;
+                    self.agents[j]
+                        .listen(format!("{} has died. Rest in peace.", &name), &name)
+                        .await;
                 }
                 dead.push(i);
             }
