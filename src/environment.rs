@@ -36,7 +36,7 @@ impl Environment {
 
     pub async fn run_timestep(&mut self) -> anyhow::Result<()> {
         println!(
-            "[INFO] There are {} people in the community",
+            "\n\n[INFO] There are {} people in the community",
             self.agents.len()
         );
 
