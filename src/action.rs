@@ -15,6 +15,7 @@ pub enum Action {
     GiveMoney,
     GiveFood,
     Converse,
+    Reproduce,
     Broadcast,
 }
 

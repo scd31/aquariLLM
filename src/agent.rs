@@ -7,6 +7,7 @@ use ollama_rs::{
     Ollama,
 };
 use rand::*;
+use faker_rand::en_us::names::FirstName;
 
 use crate::action::LlmAction;
 
@@ -21,14 +22,14 @@ pub struct Agent {
     history: Vec<ChatMessage>,
 
     // attributes (0-10)
-    honesty: u8,
-    socialness: u8,
-    selfishness: u8,
-    compassion: u8,
+    pub honesty: f32,
+    pub socialness: f32,
+    pub selfishness: f32,
+    pub compassion: f32,
 }
 
 impl Agent {
-    fn system_prompt(&self, all_names: &[&str]) -> String {
+    fn system_prompt(&self, all_names: &[String]) -> String {
         let names_formatted = all_names.join("\n");
 
         format!(
@@ -87,7 +88,7 @@ You can take the following Actions:
         Ok(action)
     }
 
-    pub fn new_random(ollama: Ollama, all_names: &[&str], name: String, seed: u8) -> Self {
+    pub fn new_random(ollama: Ollama, all_names: &[String], name: String, seed: u8) -> Self {
         let mut a = Agent {
             ollama,
 
@@ -96,10 +97,10 @@ You can take the following Actions:
             age: 0,
             food: 5,
             history: vec![],
-            honesty: (random::<f32>() * 10.0) as u8,
-            socialness: (random::<f32>() * 10.0) as u8,
-            selfishness: (random::<f32>() * 10.0) as u8,
-            compassion: (random::<f32>() * 10.0) as u8,
+            honesty: random::<f32>() * 10.0,
+            socialness: random::<f32>() * 10.0,
+            selfishness: random::<f32>() * 10.0,
+            compassion: random::<f32>() * 10.0,
         };
 
         a.history
@@ -145,6 +146,58 @@ You can take the following Actions:
             )
             .await
             .unwrap();
+    }
+
+    pub async fn propose (&mut self, msg : String, sender: &String) ->anyhow::Result<bool> {
+        let res = self
+            .ollama
+            .send_chat_messages_with_history(
+                &mut self.history,
+                ChatMessageRequest::new(
+                "llama3.2:3b".to_string(),
+                vec![ChatMessage::user(format!(r#"{} has proposed to reproduce! They said '{msg}' Do you accept? Respond true or false."#, sender)
+                )])
+                .format(FormatType::StructuredJson(JsonStructure::new::<bool>()))
+            )
+            .await
+            .unwrap();
+
+        let action = serde_json::from_str(&res.message.content)?;
+
+        Ok(action)
+    }
+
+    pub fn reproduce (&self, honesty : f32, socialness : f32, selfishness : f32, compassion : f32, all_names: &[String]) -> Agent {
+        let my_weight = random::<f32>();
+        let other_weight = 1.0 - my_weight;
+
+        let new_honesty = honesty * other_weight + self.honesty * my_weight;
+        let new_socialness = socialness * other_weight + self.socialness * my_weight;
+        let new_selfishness = selfishness * other_weight + self.selfishness * my_weight;
+        let new_compassion = compassion * other_weight + self.compassion * my_weight;
+
+        let mut a = Agent {
+            ollama : self.ollama.clone(),
+
+            name : random::<FirstName>().to_string(),
+            money: 10,
+            age: 0,
+            food: 5,
+            history: vec![],
+            honesty: new_honesty,
+            socialness: new_socialness,
+            selfishness: new_selfishness,
+            compassion: new_compassion,
+        };
+
+        let mut new_names = all_names.to_vec();
+        new_names.push(a.name.clone());
+
+        a.history
+            .push(ChatMessage::system(a.system_prompt(&new_names)));
+
+        a
+
     }
 
     // returns true if we are dead )':
