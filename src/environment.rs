@@ -65,8 +65,8 @@ impl Environment {
                     // TODO tell LLM they're an idiot
                     let index = self.get_id_from_name(&directed_at).unwrap();
                     let name = self.agents[i].name.clone();
-                    let msg_back = self.agents[index].send_msg(message, &name);
-                    self.agents[i].listen(msg_back, &name);
+                    let msg_back = self.agents[index].send_msg(message, &name).await;
+                    self.agents[i].listen(msg_back, &name).await;
                 }
                 crate::action::Action::Broadcast(message) => {
                     let name = self.agents[i].name.clone();
@@ -74,7 +74,7 @@ impl Environment {
                         if i == j {
                             continue;
                         }
-                        self.agents[j].listen(message.clone(), &name);
+                        self.agents[j].listen(message.clone(), &name).await;
                     }
                 }
             }
