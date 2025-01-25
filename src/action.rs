@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 #[derive(JsonSchema, Deserialize, Debug)]
 pub struct LlmAction {
-    thinking: String,
+    pub thinking: String,
     pub action: Action,
     pub args: ActionArgs,
 }
