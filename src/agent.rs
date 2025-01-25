@@ -35,7 +35,12 @@ pub struct Agent {
 
 impl Agent {
     fn system_prompt(&self, all_names: &[String]) -> String {
-        let names_formatted = all_names.join("\n");
+        let names_formatted = all_names
+            .iter()
+            .filter(|name| **name != self.name)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n");
         let money_ability = 10.0 - self.food_ability;
 
         format!(
