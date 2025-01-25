@@ -1,7 +1,7 @@
 use crate::{action::ConverseInfo, agent::Agent};
 use ollama_rs::Ollama;
 
-const POTENTIAL_NAMES: [&'static str; 4] = ["Brenda", "Emma", "Stephen", "Basil"];
+const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Stephen", "Basil"];
 
 pub struct Environment {
     time: u32,
@@ -15,13 +15,15 @@ impl Environment {
             agents: Vec::with_capacity(num_agents),
         };
 
+        let all_names: Vec<_> = (0..num_agents).map(|i| POTENTIAL_NAMES[i]).collect();
+
         for i in 0..num_agents {
             // TODO
             let name = POTENTIAL_NAMES[i].to_string();
 
             new_env
                 .agents
-                .push(Agent::new_random(ollama.clone(), name, i as u8));
+                .push(Agent::new_random(ollama.clone(), &all_names, name, i as u8));
         }
         new_env
     }
@@ -39,7 +41,7 @@ impl Environment {
             dbg!(&self.agents[i]);
 
             match action {
-                crate::action::Action::MakeFood => self.agents[i].food += 5,
+                crate::action::Action::MakeFood => self.agents[i].give_food(5),
                 crate::action::Action::GiveMoney(give_info) => {
                     let other_id = self.get_id_from_name(&give_info.agent_trading_with);
 
