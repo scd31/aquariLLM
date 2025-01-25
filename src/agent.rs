@@ -42,27 +42,39 @@ Sociability: {}/10
 Selfishness: {}/10
 Compassion: {}/10
 
-Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die.
+Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 "#,
             self.honesty, self.socialness, self.selfishness, self.compassion, self.food,
         )
     }
 
     pub async fn step(&mut self) -> anyhow::Result<Action> {
-        self.ollama
+        let res = self
+            .ollama
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
                     "llama3.2:3b".to_string(),
-                    vec![ChatMessage::user(
-                        "What action would you like to take?".to_string(),
-                    )],
+                    vec![ChatMessage::user(format!(
+                        "Currently you have {} food, {} dollars, and are age {} steps. What action would you like to take?",
+                        self.food, self.money, self.age
+                    ))],
                 )
                 .format(FormatType::StructuredJson(JsonStructure::new::<Action>())),
             )
-            .await;
+            .await
+            .unwrap();
 
-        todo!()
+        let action = serde_json::from_str(&res.message.content)?;
+
+        self.age += 1;
+        self.food -= 1;
+        if self.food == 0 {
+            // TODO
+            panic!("I am dead");
+        }
+
+        Ok(action)
     }
 
     pub fn new_random(ollama: Ollama, seed: u8) -> Self {
