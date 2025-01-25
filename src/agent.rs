@@ -21,7 +21,7 @@ pub struct Agent {
     pub money: u32,
     pub age: u32,
     pub food: u32,
-    history: Vec<ChatMessage>,
+    pub history: Vec<ChatMessage>,
 
     // attributes (0-10)
     pub honesty: f32,
