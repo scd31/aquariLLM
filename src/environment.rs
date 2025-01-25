@@ -1,6 +1,6 @@
 use crate::{action::Action, agent::Agent};
 use faker_rand::en_us::names::FirstName;
-use ollama_rs::Ollama;
+use ollama_rs::{generation::chat::ChatMessage, Ollama};
 use rand::random;
 
 pub struct Environment {
@@ -66,73 +66,78 @@ impl Environment {
                     self.agents[i].make_food();
                 }
                 Action::GiveMoney => {
-                    let trading_with = action.args.who_to_interact_with.unwrap();
-
-                    let other_id = self.get_id_from_name(&trading_with);
-
-                    // todo tell the LLM they're an idiot
-                    let other_id = other_id.unwrap();
-                    let name = self.agents[i].name.clone();
-                    self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
+                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                        let name = self.agents[i].name.clone();
+                        self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
+                    } else {
+                        self.agents[i].history.push(
+                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community",)
+                            ));
+                    }
                 }
                 Action::GiveFood => {
-                    let other_id =
-                        self.get_id_from_name(&action.args.who_to_interact_with.unwrap());
-
-                    // todo tell the LLM they're an idiot
-                    let other_id = other_id.unwrap();
-
-                    let name = self.agents[i].name.clone();
-                    self.agents[other_id].give_food(action.args.amount.unwrap(), &name);
+                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                        let name = self.agents[i].name.clone();
+                        self.agents[other_id].give_food(action.args.amount.unwrap(), &name);
+                    } else {
+                        self.agents[i].history.push(
+                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ));
+                    }
                 }
                 Action::Converse => {
-                    // TODO tell LLM they're an idiot
-                    let index = self
-                        .get_id_from_name(&action.args.who_to_interact_with.unwrap())
-                        .unwrap();
-                    let name = self.agents[i].name.clone();
-                    let msg_back = self.agents[index]
-                        .send_msg(action.args.message.unwrap(), &name)
-                        .await;
-                    self.agents[i].listen(msg_back, &name).await;
+                    if let Some(other_id) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                        let name = self.agents[i].name.clone();
+                        let msg_back = self.agents[other_id]
+                            .send_msg(action.args.message.unwrap(), &name)
+                            .await;
+                        self.agents[i].listen(msg_back, &name).await;
+                    } else {
+                        self.agents[i].history.push(
+                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ));
+                    }
                 }
                 Action::Reproduce => {
-                    let index = self
-                        .get_id_from_name(&action.args.who_to_interact_with.unwrap())
-                        .unwrap();
-                    let name = self.agents[i].name.clone();
-                    let accepted = self.agents[index]
-                        .propose(action.args.message.unwrap(), &name)
-                        .await?;
-                    if accepted {
-                        let honesty = self.agents[index].honesty;
-                        let socialness = self.agents[index].socialness;
-                        let selfishness = self.agents[index].selfishness;
-                        let compassion = self.agents[index].compassion;
-                        let food_ability = self.agents[index].food_ability;
-                        let new_agent = self.agents[i].reproduce(
-                            honesty,
-                            socialness,
-                            selfishness,
-                            compassion,
-                            food_ability,
-                            &self.all_names,
-                        );
+                    if let Some(index) = self.get_id_from_name(&action.args.who_to_interact_with.unwrap()) {
+                        let name = self.agents[i].name.clone();
+                        let accepted = self.agents[index]
+                            .propose(action.args.message.unwrap(), &name)
+                            .await?;
+                        if accepted {
+                            let honesty = self.agents[index].honesty;
+                            let socialness = self.agents[index].socialness;
+                            let selfishness = self.agents[index].selfishness;
+                            let compassion = self.agents[index].compassion;
+                            let food_ability = self.agents[index].food_ability;
+                            let new_agent = self.agents[i].reproduce(
+                                honesty,
+                                socialness,
+                                selfishness,
+                                compassion,
+                                food_ability,
+                                &self.all_names,
+                            );
 
-                        let mut new_names = self.all_names.to_vec();
-                        new_names.push(new_agent.name.clone());
+                            let mut new_names = self.all_names.to_vec();
+                            new_names.push(new_agent.name.clone());
 
-                        for j in 0..self.agents.len() {
-                            if i == j {
-                                continue;
+                            for j in 0..self.agents.len() {
+                                if i == j {
+                                    continue;
+                                }
+                                self.agents[j]
+                                    .listen(format!("There's a new member of the community named {}!", new_agent.name.clone()), &name)
+                                    .await;
                             }
-                            self.agents[j]
-                                .listen(format!("There's a new member of the community named {}!", new_agent.name.clone()), &name)
-                                .await;
-                        }
 
-                        self.agents.push(new_agent);
-                        self.all_names = new_names;
+                            self.agents.push(new_agent);
+                            self.all_names = new_names;
+                        } else {
+                            self.agents[i].history.push(
+                                ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                                ));
+                        }
                     }
                 }
                 Action::Broadcast => {
