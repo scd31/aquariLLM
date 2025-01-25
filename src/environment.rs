@@ -72,8 +72,8 @@ impl Environment {
                         self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community",)
-                            ));
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string())
+                            );
                     }
                 }
                 Action::GiveFood => {
@@ -84,7 +84,7 @@ impl Environment {
                         self.agents[other_id].give_food(action.args.amount.unwrap(), &name);
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
                             ));
                     }
                 }
@@ -99,7 +99,7 @@ impl Environment {
                         self.agents[i].listen(msg_back, &name).await;
                     } else {
                         self.agents[i].history.push(
-                            ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                            ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
                             ));
                     }
                 }
@@ -159,7 +159,7 @@ impl Environment {
                         }
                     } else {
                         self.agents[i].history.push(
-                                ChatMessage::system(format!("You tried to interact with someone who is not in the community! Please interact with members of the community")
+                                ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string()
                                 ));
                     }
                 }
@@ -179,6 +179,9 @@ impl Environment {
 
             if self.agents[i].age() {
                 let name = self.agents[i].name.clone();
+
+                println!("[DEBUG] {name} has died");
+
                 for j in 0..self.agents.len() {
                     if i == j {
                         continue;
