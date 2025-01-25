@@ -1,10 +1,21 @@
 use ollama_rs::{coordinator::Coordinator, generation::{chat::ChatMessage, options::GenerationOptions}};
 use rand::*;
+use ollama_rs::{
+    coordinator::Coordinator,
+    generation::{
+        chat::{request::ChatMessageRequest, ChatMessage},
+        options::GenerationOptions,
+        parameters::{FormatType, JsonStructure},
+    },
+    Ollama,
+};
 
 use crate::action::Action;
 
 pub struct Agent {
     pub name: String,
+    ollama: Ollama,
+
     money: u32,
     age: u32,
     food: u32,
@@ -18,6 +29,10 @@ pub struct Agent {
 }
 
 impl Agent {
+    pub fn new(ollama: Ollama) -> Self {
+        todo!()
+    }
+
     fn system_prompt(&self) -> String {
         format!(
             r#"
@@ -29,25 +44,46 @@ Sociability: {}/10
 Selfishness: {}/10
 Compassion: {}/10
 
-Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die.
+Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
 "#,
             self.honesty, self.socialness, self.selfishness, self.compassion, self.food,
         )
     }
 
-    pub fn step(&mut self) -> Action {
-        let tools = tool_group![];
+    pub async fn step(&mut self) -> anyhow::Result<Action> {
+        let res = self
+            .ollama
+            .send_chat_messages_with_history(
+                &mut self.history,
+                ChatMessageRequest::new(
+                    "llama3.2:3b".to_string(),
+                    vec![ChatMessage::user(format!(
+                        "Currently you have {} food, {} dollars, and are age {} steps. What action would you like to take?",
+                        self.food, self.money, self.age
+                    ))],
+                )
+                .format(FormatType::StructuredJson(JsonStructure::new::<Action>())),
+            )
+            .await
+            .unwrap();
 
-        let mut coordinator =
-            Coordinator::new_with_tools(ollama, "llama3.2:3b", &mut self.history, tools)
-                .options(GenerationOptions::default().num_ctx(16_384));
+        let action = serde_json::from_str(&res.message.content)?;
 
-        Action::MakeFood
+        self.age += 1;
+        self.food -= 1;
+        if self.food == 0 {
+            // TODO
+            panic!("I am dead");
+        }
+
+        Ok(action)
     }
 
-    pub fn new_random(seed : u8) -> Self {
+    pub fn new_random(ollama: Ollama, seed: u8) -> Self {
         Agent {
-            name : seed.to_string(),
+            ollama,
+
+            name: seed.to_string(),
             money: 10,
             age: 0,
             food: 5,
@@ -58,18 +94,18 @@ Every step, you can take an action. You will also consume one food per action. C
             compassion: (random::<f32>() * 10.0) as u8,
         }
     }
-    pub fn give_food(&mut self, amount : u32) {
+    pub fn give_food(&mut self, amount: u32) {
         self.food += amount;
     }
-    pub fn give_money(&mut self, amount : u32) {
+    pub fn give_money(&mut self, amount: u32) {
         self.money += amount;
     }
 
-    pub fn send_msg(&mut self, msg : String, sender : &String) -> String {
-        let msg_back : String = "".to_string();
+    pub fn send_msg(&mut self, msg: String, sender: &String) -> String {
+        let msg_back: String = "".to_string();
         msg_back
     }
-    pub fn listen(&mut self, msg : String, sender : &String) {
+    pub fn listen(&mut self, msg: String, sender: &String) {
         todo!();
     }
 }
