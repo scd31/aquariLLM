@@ -99,7 +99,7 @@ You can take the following Actions:
         Ok(action)
     }
 
-    pub fn new_random(ollama: Ollama, all_names: &[String], name: String, seed: u8) -> Self {
+    pub fn new_random(ollama: Ollama, all_names: &[String], name: String) -> Self {
         let mut a = Agent {
             ollama,
 
