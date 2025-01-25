@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ollama-rs = "0.2.4"
+anyhow = "1.0.95"
+ollama-rs = { version = "0.2.4" }
+schemars = { version = "0.8.21", features = ["preserve_order"] }
+serde = { version = "1.0.217", features = ["derive"] }
+tokio = { version = "1.43.0", features = ["full"] }
