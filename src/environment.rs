@@ -3,8 +3,6 @@ use faker_rand::en_us::names::FirstName;
 use ollama_rs::Ollama;
 use rand::random;
 
-const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Jake", "Paul"];
-
 pub struct Environment {
     time: u32,
     all_names: Vec<String>,
@@ -19,12 +17,16 @@ impl Environment {
             agents: Vec::with_capacity(num_agents),
         };
 
-        let all_names: Vec<_> = (0..num_agents)
-            .map(|i| POTENTIAL_NAMES[i].to_owned())
-            .collect();
-
+        let mut all_names: Vec<_> = Vec::new();
+      
+        for _ in 0..num_agents {
             let name = random::<FirstName>().to_string();
+            all_names.push(name);
+        }
 
+        for i in 0..num_agents {
+
+            let name = all_names[i].clone();
             new_env
                 .agents
                 .push(Agent::new_random(ollama.clone(), &all_names, name));
