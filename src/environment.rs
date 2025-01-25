@@ -1,5 +1,7 @@
 use crate::{action::Action, agent::Agent};
+use faker_rand::en_us::names::FirstName;
 use ollama_rs::Ollama;
+use rand::random;
 
 const POTENTIAL_NAMES: [&str; 4] = ["Brenda", "Emma", "Stephen", "Basil"];
 
@@ -19,13 +21,12 @@ impl Environment {
 
         let all_names: Vec<_> = (0..num_agents).map(|i| POTENTIAL_NAMES[i].to_owned()).collect();
 
-        for i in 0..num_agents {
-            // TODO
-            let name = POTENTIAL_NAMES[i].to_string();
+        for _ in 0..num_agents {
+            let name = random::<FirstName>().to_string();
 
             new_env
                 .agents
-                .push(Agent::new_random(ollama.clone(), &all_names, name, i as u8));
+                .push(Agent::new_random(ollama.clone(), &all_names, name));
         }
         new_env.all_names = all_names;
         new_env
@@ -135,7 +136,7 @@ impl Environment {
         for d in dead.into_iter().rev() {
             self.agents.remove(d);
         }
-
+        self.time += 1;
         Ok(())
     }
 
