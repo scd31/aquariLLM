@@ -1,5 +1,4 @@
 use ollama_rs::{
-    coordinator::Coordinator,
     generation::{
         chat::{request::ChatMessageRequest, ChatMessage},
         options::GenerationOptions,
@@ -18,7 +17,7 @@ pub struct Agent {
 
     money: u32,
     age: u32,
-    pub food: u32,
+    food: u32,
     history: Vec<ChatMessage>,
 
     // attributes (0-10)
@@ -43,7 +42,14 @@ Sociability: {}/10
 Selfishness: {}/10
 Compassion: {}/10
 
-Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
+Every step, you can take an action. You will also consume one food per action. Currently you have {} foods. If you run out of food, you will die. You can only have a maximum of 19 foods. Making food beyond this will be discarded and is a waste. Also, you will only live to be about 80-100 steps old. You are currently age 0 steps.
+
+You can take the following Actions:
+- MakeFood - make 5 food
+- GiveMoney - give money to another agent
+- GiveFood - give food to another agent
+- Converse - send a message to another agent
+- Broadcast - send a message to every agent
 "#,
             self.name,
             names_formatted,
@@ -61,13 +67,14 @@ Every step, you can take an action. You will also consume one food per action. C
             .send_chat_messages_with_history(
                 &mut self.history,
                 ChatMessageRequest::new(
-                    "llama3.2:3b".to_string(),
+                    "qwen2.5:14b".to_string(),
                     vec![ChatMessage::user(format!(
                         "Currently you have {} food, {} dollars, and are age {} steps. What action would you like to take?",
                         self.food, self.money, self.age
                     ))],
                 )
-                .format(FormatType::StructuredJson(JsonStructure::new::<Action>())),
+                    .format(FormatType::StructuredJson(JsonStructure::new::<Action>()))
+                    .options(GenerationOptions::default().temperature(0.9).num_ctx(16_384)),
             )
             .await
             .unwrap();
@@ -77,8 +84,8 @@ Every step, you can take an action. You will also consume one food per action. C
         Ok(action)
     }
 
-    pub fn new_random(ollama: Ollama, name: String, seed: u8) -> Self {
-        Agent {
+    pub fn new_random(ollama: Ollama, all_names: &[&str], name: String, seed: u8) -> Self {
+        let mut a = Agent {
             ollama,
 
             name,
@@ -90,10 +97,16 @@ Every step, you can take an action. You will also consume one food per action. C
             socialness: (random::<f32>() * 10.0) as u8,
             selfishness: (random::<f32>() * 10.0) as u8,
             compassion: (random::<f32>() * 10.0) as u8,
-        }
+        };
+
+        a.history
+            .push(ChatMessage::system(a.system_prompt(all_names)));
+
+        a
     }
     pub fn give_food(&mut self, amount: u32) {
         self.food += amount;
+        self.food = self.food.clamp(0, 20);
     }
     pub fn give_money(&mut self, amount: u32) {
         self.money += amount;
