@@ -55,7 +55,7 @@ Every step, you can take an action. You will also consume one food per action. C
 
 If you want to trade, use messages to try to set up a deal with another person. Then you can each give food/money to each other. Keep in mind the other person can always fall through on their end of the deal!
 
-You want to reproduce whenever possible. Reproduction adds new people to the community who can be interacted with.
+You want to reproduce whenever possible. Reproduction adds new people to the community who can be interacted with. Your goal should be to keep the community alive, and reproduction is an easy way to do this.
 
 You can take the following Actions:
 - Work - get {} money for doing work
@@ -180,6 +180,8 @@ You can take the following Actions:
     }
 
     pub async fn propose(&mut self, msg: String, sender: &String) -> anyhow::Result<bool> {
+        println!("================ REPRODUCTION ATTEMPT ======================");
+
         let res = self
             .ollama
             .send_chat_messages_with_history(
@@ -194,6 +196,8 @@ You can take the following Actions:
             .unwrap();
 
         let action = serde_json::from_str(&res.message.content)?;
+
+        dbg!(action);
 
         Ok(action)
     }
