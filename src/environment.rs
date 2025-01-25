@@ -122,6 +122,16 @@ impl Environment {
                         let mut new_names = self.all_names.to_vec();
                         new_names.push(new_agent.name.clone());
 
+                        for j in 0..self.agents.len() {
+                            if i == j {
+                                continue;
+                            }
+                            self.agents[j]
+                                .listen(format!("There's a new member of the community named {}!", new_agent.name.clone()), &name)
+                                .await;
+                        }
+
+                        self.agents.push(new_agent);
                         self.all_names = new_names;
                     }
                 }
