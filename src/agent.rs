@@ -62,7 +62,7 @@ If you want to trade, use messages to try to set up a deal with another person. 
 
 You want to reproduce whenever possible. Reproduction adds new people to the community who can be interacted with. Your goal should be to keep the community alive, and reproduction is an easy way to do this.
 
-You can take the following Actions:
+You can take the following Actions. Pay attention to the arguments - they are required, not optional. If you forget an argument, you will die!
 - Work - get {} money for doing work
 - MakeFood(amount) - Make {} food
 - GiveMoney(who_to_interact_with, amount) - give money to another person
