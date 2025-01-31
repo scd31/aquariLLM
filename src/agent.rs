@@ -111,14 +111,15 @@ You can take the following Actions. Pay attention to the arguments - they are re
     }
 
     pub fn new_random(ollama: Ollama, client : &RpcClient, keypair : &Keypair, all_names: &[String], name: String) -> Self {
-        let ctx = client.get_latest_blockhash().unwrap();
-        let agent_keypair = Keypair::from_seed(name.as_bytes()).unwrap();
+        let ctx = client.get_latest_blockhash().expect("Error getting blockhash from client");
+        let agent_keypair = Keypair::from_seed(&[name.as_bytes(), &keypair.to_bytes()].concat()).expect("Error forming keypair");
+        println!("key: {}", agent_keypair.pubkey().to_string());
         let balance = 10;
         let tx = system_transaction::create_account(
             keypair,
             &agent_keypair,
             ctx,
-            sol_to_lamports(balance as f64 / 10.0),
+            sol_to_lamports(balance as f64 / 100.0),
             0,
             &system_program::ID
         );
@@ -154,12 +155,12 @@ You can take the following Actions. Pay attention to the arguments - they are re
         )));
     }
 
-    pub fn give_money(&mut self, amount: u32, sender: &String, client : &RpcClient) {
+    pub fn give_money(&mut self, amount: u32, sender: &String, keypair : &Keypair, client : &RpcClient) {
         self.money += amount;
         let ctx = client.get_latest_blockhash().unwrap();
         let tx = system_transaction::transfer(
-            &self.keypair(),
-            &Keypair::from_seed(sender.as_bytes()).unwrap().pubkey(),
+            &self.keypair(keypair),
+            &Keypair::from_seed(&[sender.as_bytes(), &keypair.to_bytes()].concat()).unwrap().pubkey(),
             amount as u64,
             ctx
         );
@@ -288,8 +289,8 @@ You can take the following Actions. Pay attention to the arguments - they are re
         false
     }
 
-    pub fn keypair (&self) -> Keypair {
-        Keypair::from_seed(self.name.as_bytes()).unwrap()
+    pub fn keypair (&self, keypair : &Keypair) -> Keypair {
+        Keypair::from_seed(&[self.name.as_bytes(), &keypair.to_bytes()].concat()).unwrap()
     }
 }
 

@@ -3,10 +3,13 @@ use faker_rand::en_us::names::FirstName;
 use ollama_rs::{generation::chat::ChatMessage, Ollama};
 use rand::random;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::{signature::{keypair_from_seed, Keypair}, signer::keypair::generate_seed_from_seed_phrase_and_passphrase};
+use solana_sdk::{native_token::sol_to_lamports, signature::{keypair_from_seed, Keypair}, signer::{keypair::generate_seed_from_seed_phrase_and_passphrase, Signer}, system_program, system_transaction};
 
 pub const SEED_PHRASE : &str = "aquariLLM";
-pub const PASSPHRASE : &str = "simmed e";
+pub const PASSPHRASE : &str = "simmed d";
+
+// replace with keypair from config
+pub const KEYPAIR_BYTES : &[u8] = &[211,101,102,180,52,150,64,170,128,3,135,231,115,148,235,185,159,220,105,1,81,193,179,146,81,229,142,228,199,136,99,171,80,143,31,28,107,255,223,95,171,254,205,10,90,45,116,163,158,54,133,106,63,181,154,77,58,152,44,18,105,78,24,66];
 
 pub struct Environment {
     time: u32,
@@ -20,6 +23,22 @@ impl Environment {
     pub async fn create(ollama: Ollama, client : RpcClient, num_agents: usize) -> Self {
         let seed = generate_seed_from_seed_phrase_and_passphrase(SEED_PHRASE, PASSPHRASE);
         let keypair = keypair_from_seed(&seed).unwrap();
+        let ctx = client.get_latest_blockhash().unwrap();
+        println!("Creating environment..");
+        println!("Env keypair: {}", keypair.pubkey().to_string());
+
+        if client.get_balance(&keypair.pubkey()).expect("Error getting account balance") == 0 {
+            let tx = system_transaction::create_account(
+                &Keypair::from_bytes(KEYPAIR_BYTES).unwrap(),
+                &keypair,
+                ctx,
+                sol_to_lamports(10.0),
+                0,
+                &system_program::ID
+            );
+            let _cfm = client.send_and_confirm_transaction(&tx).expect("Error creating env account");
+        }
+        let _confirmation = client.request_airdrop(&keypair.pubkey(), sol_to_lamports(5.0)).expect("Error airdropping sol");
 
         let mut new_env = Environment {
             time: 0,
@@ -36,6 +55,7 @@ impl Environment {
             all_names.push(name);
         }
 
+        println!("Creating agents..");
         for i in 0..num_agents {
             let name = all_names[i].clone();
             new_env
@@ -86,7 +106,7 @@ impl Environment {
                         self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
                     {
                         let name = self.agents[i].name.clone();
-                        self.agents[other_id].give_money(action.args.amount.unwrap(), &name, &self.client);
+                        self.agents[other_id].give_money(action.args.amount.unwrap(), &name, &self.keypair, &self.client);
                     } else {
                         self.agents[i].history.push(
                             ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string())
