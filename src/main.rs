@@ -7,6 +7,7 @@ use ollama_rs::{
     Ollama,
 };
 use signalbool::{Flag, Signal, SignalBool};
+use solana_client::rpc_client::RpcClient;
 
 mod action;
 mod agent;
@@ -16,7 +17,10 @@ mod environment;
 async fn main() -> anyhow::Result<()> {
     let ollama = Ollama::default();
 
-    let mut env = Environment::create(ollama, 4);
+    let url = "http://localhost:8899".to_string();
+    let client = RpcClient::new(url);
+
+    let mut env = Environment::create(ollama, client, 4).await;
 
     println!("Let's meet our cast!");
 

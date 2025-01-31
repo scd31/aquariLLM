@@ -13,4 +13,6 @@ serde_json = "1.0.137"
 tokio = { version = "1.43.0", features = ["full"] }
 faker_rand = "0.1.1"
 signalbool = "0.2.5"
+solana-sdk = "2.1.11"
+solana-client = "2.1.11"
 

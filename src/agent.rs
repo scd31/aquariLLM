@@ -10,6 +10,8 @@ use ollama_rs::{
 use rand::*;
 use schemars::JsonSchema;
 use serde::Deserialize;
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{native_token::sol_to_lamports, signature::Keypair, signer::{SeedDerivable, Signer}, system_program, system_transaction};
 
 use crate::action::LlmAction;
 
@@ -108,12 +110,24 @@ You can take the following Actions. Pay attention to the arguments - they are re
         Ok(action)
     }
 
-    pub fn new_random(ollama: Ollama, all_names: &[String], name: String) -> Self {
+    pub fn new_random(ollama: Ollama, client : &RpcClient, keypair : &Keypair, all_names: &[String], name: String) -> Self {
+        let ctx = client.get_latest_blockhash().unwrap();
+        let agent_keypair = Keypair::from_seed(name.as_bytes()).unwrap();
+        let balance = 10;
+        let tx = system_transaction::create_account(
+            keypair,
+            &agent_keypair,
+            ctx,
+            sol_to_lamports(balance as f64 / 10.0),
+            0,
+            &system_program::ID
+        );
+
         let mut a = Agent {
             ollama,
 
             name,
-            money: 10,
+            money: balance,
             age: 0,
             food: 5,
             history: vec![],
@@ -127,6 +141,7 @@ You can take the following Actions. Pay attention to the arguments - they are re
         a.history
             .push(ChatMessage::system(a.system_prompt(all_names)));
 
+        let _confirmation = client.send_and_confirm_transaction(&tx).unwrap();
         a
     }
 
@@ -139,8 +154,16 @@ You can take the following Actions. Pay attention to the arguments - they are re
         )));
     }
 
-    pub fn give_money(&mut self, amount: u32, sender: &String) {
+    pub fn give_money(&mut self, amount: u32, sender: &String, client : &RpcClient) {
         self.money += amount;
+        let ctx = client.get_latest_blockhash().unwrap();
+        let tx = system_transaction::transfer(
+            &self.keypair(),
+            &Keypair::from_seed(sender.as_bytes()).unwrap().pubkey(),
+            amount as u64,
+            ctx
+        );
+        let _confimation = client.send_and_confirm_transaction(&tx).unwrap();
         self.history.push(ChatMessage::system(format!(
             "You have been given ${} by {}",
             amount, sender
@@ -263,6 +286,10 @@ You can take the following Actions. Pay attention to the arguments - they are re
         }
 
         false
+    }
+
+    pub fn keypair (&self) -> Keypair {
+        Keypair::from_seed(self.name.as_bytes()).unwrap()
     }
 }
 

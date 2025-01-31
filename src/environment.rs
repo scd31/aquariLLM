@@ -2,19 +2,31 @@ use crate::{action::Action, agent::Agent};
 use faker_rand::en_us::names::FirstName;
 use ollama_rs::{generation::chat::ChatMessage, Ollama};
 use rand::random;
+use solana_client::rpc_client::RpcClient;
+use solana_sdk::{signature::{keypair_from_seed, Keypair}, signer::keypair::generate_seed_from_seed_phrase_and_passphrase};
+
+pub const SEED_PHRASE : &str = "aquariLLM";
+pub const PASSPHRASE : &str = "simmed e";
 
 pub struct Environment {
     time: u32,
     all_names: Vec<String>,
     pub agents: Vec<Agent>,
+    pub client: RpcClient,
+    pub keypair: Keypair
 }
 
 impl Environment {
-    pub fn create(ollama: Ollama, num_agents: usize) -> Self {
+    pub async fn create(ollama: Ollama, client : RpcClient, num_agents: usize) -> Self {
+        let seed = generate_seed_from_seed_phrase_and_passphrase(SEED_PHRASE, PASSPHRASE);
+        let keypair = keypair_from_seed(&seed).unwrap();
+
         let mut new_env = Environment {
             time: 0,
             all_names: Vec::new(),
             agents: Vec::with_capacity(num_agents),
+            client,
+            keypair
         };
 
         let mut all_names: Vec<_> = Vec::new();
@@ -28,7 +40,7 @@ impl Environment {
             let name = all_names[i].clone();
             new_env
                 .agents
-                .push(Agent::new_random(ollama.clone(), &all_names, name));
+                .push(Agent::new_random(ollama.clone(), &new_env.client, &new_env.keypair, &all_names, name));
         }
         new_env.all_names = all_names;
         new_env
@@ -74,7 +86,7 @@ impl Environment {
                         self.get_id_from_name(&action.args.who_to_interact_with.unwrap())
                     {
                         let name = self.agents[i].name.clone();
-                        self.agents[other_id].give_money(action.args.amount.unwrap(), &name);
+                        self.agents[other_id].give_money(action.args.amount.unwrap(), &name, &self.client);
                     } else {
                         self.agents[i].history.push(
                             ChatMessage::system("You tried to interact with someone who is not in the community! Please interact with members of the community".to_string())
